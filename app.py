@@ -4,14 +4,14 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, login_
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 import os
-from PIL import Image
-import io
-import base64
 
 app = Flask(__name__)
-app.config['09da35833ef9cb699888f08d66a0cfb827fb10e53f6c1549'] = 'your-secret-key-here'
+app.config['SECRET_KEY'] = 'your-secret-key-here'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///sociafam.db'
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
+
+# Create upload folder if it doesn't exist
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 db = SQLAlchemy(app)
 login_manager = LoginManager()
@@ -183,14 +183,17 @@ def create_post():
     
     new_post = Post(content=content, user_id=current_user.id, post_type=post_type)
     
-    # Handle image upload
+    # Handle image upload (simplified without Pillow)
     if 'image' in request.files:
         image = request.files['image']
         if image.filename != '':
-            filename = f"post_{datetime.now().strftime('%Y%m%d%H%M%S')}_{current_user.id}.jpg"
-            image_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            image.save(image_path)
-            new_post.image = filename
+            # Simple file extension check
+            allowed_extensions = {'jpg', 'jpeg', 'png', 'gif'}
+            if '.' in image.filename and image.filename.rsplit('.', 1)[1].lower() in allowed_extensions:
+                filename = f"post_{datetime.now().strftime('%Y%m%d%H%M%S')}_{current_user.id}.{image.filename.rsplit('.', 1)[1].lower()}"
+                image_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                image.save(image_path)
+                new_post.image = filename
     
     db.session.add(new_post)
     db.session.commit()
@@ -345,7 +348,15 @@ def api_notifications():
     
     return jsonify(notifications_data)
 
+# Add default profile images route
+@app.route('/static/uploads/<filename>')
+def uploaded_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
-    app.run(debug=True)
+    # Use environment variable to determine if running in production
+    import os
+    debug_mode = os.environ.get('DEBUG', 'False').lower() == 'true'
+    app.run(debug=debug_mode, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
