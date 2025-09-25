@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, redirect, url_for, flash
+from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -6,8 +6,9 @@ from datetime import datetime
 import os
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'your-secret-key-here'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///sociafam.db'
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-here')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///sociafam.db').replace('postgres://', 'postgresql://')
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
 
 # Create upload folder if it doesn't exist
@@ -100,6 +101,24 @@ class Notification(db.Model):
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
+
+# Initialize database tables
+def init_db():
+    with app.app_context():
+        db.create_all()
+        # Create a default user for testing if no users exist
+        if not User.query.first():
+            default_user = User(
+                username='demo',
+                email='demo@sociafam.com',
+                password_hash=generate_password_hash('demo123')
+            )
+            db.session.add(default_user)
+            db.session.commit()
+            print("Default user created: demo/demo123")
+
+# Initialize database when app starts
+init_db()
 
 # Routes
 @app.route('/')
@@ -353,10 +372,16 @@ def api_notifications():
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
+# Serve static files for default images
+@app.route('/default_profile.png')
+def default_profile():
+    return send_from_directory('static', 'default_profile.png')
+
+@app.route('/default_cover.jpg')
+def default_cover():
+    return send_from_directory('static', 'default_cover.jpg')
+
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
     # Use environment variable to determine if running in production
-    import os
     debug_mode = os.environ.get('DEBUG', 'False').lower() == 'true'
     app.run(debug=debug_mode, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
