@@ -9,7 +9,7 @@ import io
 import base64
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'your-secret-key-here'
+app.config['09da35833ef9cb699888f08d66a0cfb827fb10e53f6c1549'] = 'your-secret-key-here'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///sociafam.db'
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
 
