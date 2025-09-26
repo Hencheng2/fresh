@@ -83,7 +83,7 @@
                 
                 <div class="user-menu">
                     <div class="user-info">
-                        <img src="{{ url_for('static', filename='uploads/' + current_user.profile_pic) if current_user.is_authenticated else '' }}" alt="Profile" class="profile-pic-small">
+                        <img src="{{ url_for('static', filename='uploads/' + current_user.profile_pic) if current_user.is_authenticated and current_user.profile_pic else 'https://via.placeholder.com/40/1a3a2a/ffffff?text=SF' }}" alt="Profile" class="profile-pic-small">
                         <span>{{ current_user.username if current_user.is_authenticated else '' }}</span>
                     </div>
                     <div class="quick-actions">
@@ -109,10 +109,10 @@
             <aside class="sidebar left-sidebar">
                 <div class="user-card">
                     <div class="cover-photo">
-                        <img src="{{ url_for('static', filename='uploads/' + current_user.cover_photo) if current_user.is_authenticated else 'default_cover.jpg' }}" alt="Cover">
+                        <img src="{{ url_for('static', filename='uploads/' + current_user.cover_photo) if current_user.is_authenticated and current_user.cover_photo else 'https://via.placeholder.com/800x200/1a3a2a/ffffff?text=SociaFam+Cover' }}" alt="Cover">
                     </div>
                     <div class="user-details">
-                        <img src="{{ url_for('static', filename='uploads/' + current_user.profile_pic) if current_user.is_authenticated else 'default_profile.png' }}" alt="Profile" class="profile-pic-large">
+                        <img src="{{ url_for('static', filename='uploads/' + current_user.profile_pic) if current_user.is_authenticated and current_user.profile_pic else 'https://via.placeholder.com/150/1a3a2a/ffffff?text=SF' }}" alt="Profile" class="profile-pic-large">
                         <h3>{{ current_user.username if current_user.is_authenticated else '' }}</h3>
                         <p>{{ current_user.bio if current_user.is_authenticated and current_user.bio else 'No bio yet' }}</p>
                     </div>
@@ -168,7 +168,7 @@
                 <!-- Create Post Card -->
                 <div class="card create-post">
                     <div class="post-header">
-                        <img src="{{ url_for('static', filename='uploads/' + current_user.profile_pic) if current_user.is_authenticated else 'default_profile.png' }}" alt="Profile" class="profile-pic-small">
+                        <img src="{{ url_for('static', filename='uploads/' + current_user.profile_pic) if current_user.is_authenticated and current_user.profile_pic else 'https://via.placeholder.com/40/1a3a2a/ffffff?text=SF' }}" alt="Profile" class="profile-pic-small">
                         <input type="text" placeholder="What's on your mind, {{ current_user.username if current_user.is_authenticated else 'User' }}?">
                     </div>
                     <div class="post-actions">
@@ -192,7 +192,7 @@
                     <div class="story-card create-story">
                         <div class="story-content">
                             <div class="story-avatar">
-                                <img src="{{ url_for('static', filename='uploads/' + current_user.profile_pic) if current_user.is_authenticated else 'default_profile.png' }}" alt="Profile">
+                                <img src="{{ url_for('static', filename='uploads/' + current_user.profile_pic) if current_user.is_authenticated and current_user.profile_pic else 'https://via.placeholder.com/50/1a3a2a/ffffff?text=SF' }}" alt="Profile">
                                 <div class="add-story-btn">+</div>
                             </div>
                             <p>Create Story</p>
@@ -204,7 +204,84 @@
 
                 <!-- Posts Feed -->
                 <div id="posts-container">
-                    <!-- Posts will be loaded here by JavaScript -->
+                    {% if posts %}
+                        {% for post in posts %}
+                        <div class="card post">
+                            <div class="post-user">
+                                <img src="{{ url_for('static', filename='uploads/' + post.author.profile_pic) if post.author.profile_pic else 'https://via.placeholder.com/40/1a3a2a/ffffff?text=SF' }}" alt="{{ post.author.username }}" class="profile-pic-small">
+                                <div class="post-user-info">
+                                    <h4>{{ post.author.username }}</h4>
+                                    <span>{{ post.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                                </div>
+                            </div>
+                            <div class="post-content">
+                                <p>{{ post.content }}</p>
+                                {% if post.image %}
+                                    <img src="{{ url_for('static', filename='uploads/' + post.image) }}" alt="Post image" class="post-image">
+                                {% endif %}
+                            </div>
+                            <div class="post-stats">
+                                <div class="likes-count">
+                                    <span>{{ post.likes|length }} likes</span>
+                                </div>
+                                <div class="comments-count">
+                                    <span>{{ post.comments|length }} comments</span>
+                                </div>
+                            </div>
+                            <div class="post-actions-row">
+                                <div class="reactions-container">
+                                    <button class="post-action like-btn" data-post-id="{{ post.id }}">
+                                        <i class="fas fa-thumbs-up"></i>
+                                        <span>Like</span>
+                                    </button>
+                                    <div class="reactions-tooltip">
+                                        <span data-reaction="like">👍</span>
+                                        <span data-reaction="love">❤️</span>
+                                        <span data-reaction="haha">😄</span>
+                                        <span data-reaction="wow">😲</span>
+                                        <span data-reaction="sad">😢</span>
+                                        <span data-reaction="angry">😠</span>
+                                    </div>
+                                </div>
+                                <button class="post-action comment-btn" data-post-id="{{ post.id }}">
+                                    <i class="fas fa-comment"></i>
+                                    <span>Comment</span>
+                                </button>
+                                <button class="post-action share-btn" data-post-id="{{ post.id }}">
+                                    <i class="fas fa-share"></i>
+                                    <span>Share</span>
+                                </button>
+                            </div>
+                            <div class="comments-section" id="comments-{{ post.id }}" style="display: none;">
+                                <div class="comments-list">
+                                    {% for comment in post.comments %}
+                                    <div class="comment">
+                                        <img src="{{ url_for('static', filename='uploads/' + comment.author.profile_pic) if comment.author.profile_pic else 'https://via.placeholder.com/32/1a3a2a/ffffff?text=SF' }}" alt="User" class="comment-avatar">
+                                        <div class="comment-content">
+                                            <div class="comment-header">
+                                                <span class="comment-author">{{ comment.author.username }}</span>
+                                                <span class="comment-time">{{ comment.created_at.strftime('%H:%M') }}</span>
+                                            </div>
+                                            <p>{{ comment.content }}</p>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                <div class="add-comment">
+                                    <input type="text" placeholder="Write a comment..." class="comment-input">
+                                    <button class="comment-submit-btn" data-post-id="{{ post.id }}">Post</button>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="card">
+                            <div style="padding: 40px; text-align: center;">
+                                <h3>Welcome to SociaFam!</h3>
+                                <p>Start connecting with friends by creating your first post or adding friends.</p>
+                            </div>
+                        </div>
+                    {% endif %}
                 </div>
                 
                 <div class="load-more-container">
@@ -232,7 +309,7 @@
                     <h3>Birthdays</h3>
                     <div class="birthday-item">
                         <i class="fas fa-birthday-cake"></i>
-                        <span>John Doe's birthday is today.</span>
+                        <span>No birthdays today.</span>
                     </div>
                 </div>
             </aside>
