@@ -6,7 +6,7 @@ from datetime import datetime
 import os
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-here')
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', '09da35833ef9cb699888f08d66a0cfb827fb10e53f6c1549')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///sociafam.db').replace('postgres://', 'postgresql://')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
@@ -49,7 +49,7 @@ class Post(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     is_pinned = db.Column(db.Boolean, default=False)
-    post_type = db.Column(db.String(20), default='post')  # post, story, reel
+    post_type = db.Column(db.String(20), default='post')
     
     # Relationships
     comments = db.relationship('Comment', backref='post', lazy=True, cascade='all, delete-orphan')
@@ -68,7 +68,7 @@ class Like(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     post_id = db.Column(db.Integer, db.ForeignKey('post.id'), nullable=False)
-    reaction = db.Column(db.String(10), default='like')  # like, love, haha, wow, sad, angry
+    reaction = db.Column(db.String(10), default='like')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 # Friend model
@@ -76,7 +76,7 @@ class Friend(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     friend_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    status = db.Column(db.String(20), default='pending')  # pending, accepted, blocked
+    status = db.Column(db.String(20), default='pending')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     is_close_friend = db.Column(db.Boolean, default=False)
 
@@ -102,23 +102,9 @@ class Notification(db.Model):
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-# Initialize database tables
-def init_db():
-    with app.app_context():
-        db.create_all()
-        # Create a default user for testing if no users exist
-        if not User.query.first():
-            default_user = User(
-                username='demo',
-                email='demo@sociafam.com',
-                password_hash=generate_password_hash('demo123')
-            )
-            db.session.add(default_user)
-            db.session.commit()
-            print("Default user created: demo/demo123")
-
-# Initialize database when app starts
-init_db()
+# Initialize database
+with app.app_context():
+    db.create_all()
 
 # Routes
 @app.route('/')
@@ -130,7 +116,6 @@ def index():
 @app.route('/feed')
 @login_required
 def feed():
-    # Get posts from friends and user
     friends = Friend.query.filter(
         ((Friend.user_id == current_user.id) | (Friend.friend_id == current_user.id)) & 
         (Friend.status == 'accepted')
@@ -202,11 +187,9 @@ def create_post():
     
     new_post = Post(content=content, user_id=current_user.id, post_type=post_type)
     
-    # Handle image upload (simplified without Pillow)
     if 'image' in request.files:
         image = request.files['image']
         if image.filename != '':
-            # Simple file extension check
             allowed_extensions = {'jpg', 'jpeg', 'png', 'gif'}
             if '.' in image.filename and image.filename.rsplit('.', 1)[1].lower() in allowed_extensions:
                 filename = f"post_{datetime.now().strftime('%Y%m%d%H%M%S')}_{current_user.id}.{image.filename.rsplit('.', 1)[1].lower()}"
@@ -274,7 +257,6 @@ def add_friend(user_id):
     db.session.add(new_friend)
     db.session.commit()
     
-    # Create notification for the friend
     notification = Notification(
         user_id=user_id,
         content=f"{current_user.username} sent you a friend request",
@@ -291,7 +273,6 @@ def profile(user_id):
     user = User.query.get_or_404(user_id)
     posts = Post.query.filter_by(user_id=user_id).order_by(Post.created_at.desc()).all()
     
-    # Check friendship status
     friendship = Friend.query.filter(
         ((Friend.user_id == current_user.id) & (Friend.friend_id == user_id)) |
         ((Friend.user_id == user_id) & (Friend.friend_id == current_user.id))
@@ -299,7 +280,6 @@ def profile(user_id):
     
     return render_template('index.html', profile_user=user, profile_posts=posts, friendship=friendship)
 
-# API endpoints for AJAX
 @app.route('/api/posts')
 @login_required
 def api_posts():
@@ -367,12 +347,10 @@ def api_notifications():
     
     return jsonify(notifications_data)
 
-# Add default profile images route
 @app.route('/static/uploads/<filename>')
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
-# Serve static files for default images
 @app.route('/default_profile.png')
 def default_profile():
     return send_from_directory('static', 'default_profile.png')
@@ -382,6 +360,5 @@ def default_cover():
     return send_from_directory('static', 'default_cover.jpg')
 
 if __name__ == '__main__':
-    # Use environment variable to determine if running in production
     debug_mode = os.environ.get('DEBUG', 'False').lower() == 'true'
     app.run(debug=debug_mode, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
