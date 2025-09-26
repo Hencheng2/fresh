@@ -8,7 +8,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-    <!-- Login/Register Modal -->
     <div id="auth-modal" class="modal" style="{{ 'display:none;' if current_user.is_authenticated else '' }}">
         <div class="modal-content">
             <span class="close">&times;</span>
@@ -18,7 +17,7 @@
             </div>
             
             <div id="login-tab" class="tab-content active">
-                <h2>Welcome Back to SociaFam</h2>
+                <h2>Welcome to SociaFam</h2>
                 <form method="POST" action="{{ url_for('login') }}">
                     <div class="form-group">
                         <input type="text" name="username" placeholder="Username" required>
@@ -31,7 +30,7 @@
             </div>
             
             <div id="register-tab" class="tab-content">
-                <h2>Join SociaFam Today</h2>
+                <h2>Join SociaFam</h2>
                 <form method="POST" action="{{ url_for('register') }}">
                     <div class="form-group">
                         <input type="text" name="username" placeholder="Username" required>
@@ -48,9 +47,7 @@
         </div>
     </div>
 
-    <!-- Main App Container -->
     <div id="app-container" style="{{ 'display:none;' if not current_user.is_authenticated else '' }}">
-        <!-- Header/Navigation -->
         <header class="header">
             <div class="header-content">
                 <div class="logo">
@@ -58,8 +55,8 @@
                 </div>
                 
                 <div class="search-bar">
-                    <input type="text" placeholder="Search for people, posts, or groups...">
-                    <button><i class="fas fa-search"></i></button>
+                    <input type="text" id="search-input" placeholder="Search for people...">
+                    <button onclick="searchUsers()"><i class="fas fa-search"></i></button>
                 </div>
                 
                 <nav class="nav-menu">
@@ -67,35 +64,30 @@
                         <i class="fas fa-home"></i>
                         <span>Home</span>
                     </a>
-                    <a href="#" class="nav-item">
+                    <a href="{{ url_for('my_profile') }}" class="nav-item">
+                        <i class="fas fa-user"></i>
+                        <span>Profile</span>
+                    </a>
+                    <a href="#" class="nav-item" onclick="showFriends()">
                         <i class="fas fa-user-friends"></i>
                         <span>Friends</span>
-                    </a>
-                    <a href="#" class="nav-item">
-                        <i class="fas fa-video"></i>
-                        <span>Watch</span>
-                    </a>
-                    <a href="#" class="nav-item">
-                        <i class="fas fa-store"></i>
-                        <span>Marketplace</span>
                     </a>
                 </nav>
                 
                 <div class="user-menu">
-                    <div class="user-info">
-                        <img src="{{ url_for('static', filename='uploads/' + current_user.profile_pic) if current_user.is_authenticated and current_user.profile_pic else 'https://via.placeholder.com/40/1a3a2a/ffffff?text=SF' }}" alt="Profile" class="profile-pic-small">
+                    <div class="user-info" onclick="window.location.href='{{ url_for('my_profile') }}'">
+                        {% if current_user.is_authenticated and current_user.profile_pic %}
+                            <img src="{{ url_for('static', filename='uploads/' + current_user.profile_pic) }}" alt="Profile" class="profile-pic-small">
+                        {% else %}
+                            <div class="profile-placeholder">{{ current_user.username[0] if current_user.is_authenticated else 'U' }}</div>
+                        {% endif %}
                         <span>{{ current_user.username if current_user.is_authenticated else '' }}</span>
-                    </div>
-                    <div class="quick-actions">
-                        <button class="icon-btn"><i class="fas fa-plus"></i></button>
-                        <button class="icon-btn"><i class="fas fa-comment-dots"></i></button>
-                        <button class="icon-btn"><i class="fas fa-bell"></i></button>
                     </div>
                     <div class="dropdown">
                         <button class="dropdown-btn"><i class="fas fa-caret-down"></i></button>
                         <div class="dropdown-content">
-                            <a href="/profile/{{ current_user.id if current_user.is_authenticated else '' }}"><i class="fas fa-user"></i> Profile</a>
-                            <a href="#"><i class="fas fa-cog"></i> Settings</a>
+                            <a href="{{ url_for('my_profile') }}"><i class="fas fa-user"></i> Profile</a>
+                            <a href="#" onclick="showSettings()"><i class="fas fa-cog"></i> Settings</a>
                             <a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Logout</a>
                         </div>
                     </div>
@@ -103,112 +95,78 @@
             </div>
         </header>
 
-        <!-- Main Content -->
         <main class="main-content">
-            <!-- Left Sidebar -->
             <aside class="sidebar left-sidebar">
                 <div class="user-card">
                     <div class="cover-photo">
-                        <img src="{{ url_for('static', filename='uploads/' + current_user.cover_photo) if current_user.is_authenticated and current_user.cover_photo else 'https://via.placeholder.com/800x200/1a3a2a/ffffff?text=SociaFam+Cover' }}" alt="Cover">
+                        {% if current_user.is_authenticated and current_user.cover_photo %}
+                            <img src="{{ url_for('static', filename='uploads/' + current_user.cover_photo) }}" alt="Cover">
+                        {% else %}
+                            <div class="cover-placeholder"></div>
+                        {% endif %}
+                        <button class="edit-cover" onclick="document.getElementById('cover-photo-input').click()">
+                            <i class="fas fa-camera"></i>
+                        </button>
                     </div>
                     <div class="user-details">
-                        <img src="{{ url_for('static', filename='uploads/' + current_user.profile_pic) if current_user.is_authenticated and current_user.profile_pic else 'https://via.placeholder.com/150/1a3a2a/ffffff?text=SF' }}" alt="Profile" class="profile-pic-large">
+                        <div class="profile-pic-container">
+                            {% if current_user.is_authenticated and current_user.profile_pic %}
+                                <img src="{{ url_for('static', filename='uploads/' + current_user.profile_pic) }}" alt="Profile" class="profile-pic-large">
+                            {% else %}
+                                <div class="profile-placeholder-large">{{ current_user.username[0] if current_user.is_authenticated else 'U' }}</div>
+                            {% endif %}
+                            <button class="edit-profile-pic" onclick="document.getElementById('profile-pic-input').click()">
+                                <i class="fas fa-camera"></i>
+                            </button>
+                        </div>
                         <h3>{{ current_user.username if current_user.is_authenticated else '' }}</h3>
-                        <p>{{ current_user.bio if current_user.is_authenticated and current_user.bio else 'No bio yet' }}</p>
+                        <p class="user-bio">{{ current_user.bio if current_user.is_authenticated and current_user.bio else 'Click to add bio' }}</p>
+                        <button class="btn-secondary" onclick="editBio()">Edit Profile</button>
                     </div>
                 </div>
                 
-                <nav class="sidebar-nav">
-                    <a href="#" class="sidebar-item">
-                        <i class="fas fa-user-friends"></i>
-                        <span>Friends</span>
-                    </a>
-                    <a href="#" class="sidebar-item">
-                        <i class="fas fa-users"></i>
-                        <span>Groups</span>
-                        <span class="badge">5</span>
-                    </a>
-                    <a href="#" class="sidebar-item">
-                        <i class="fas fa-calendar-alt"></i>
-                        <span>Events</span>
-                    </a>
-                    <a href="#" class="sidebar-item">
-                        <i class="fas fa-bookmark"></i>
-                        <span>Saved</span>
-                    </a>
-                    <a href="#" class="sidebar-item">
-                        <i class="fas fa-clock"></i>
-                        <span>Memories</span>
-                    </a>
-                    <a href="#" class="sidebar-item">
-                        <i class="fas fa-flag"></i>
-                        <span>Pages</span>
-                    </a>
-                </nav>
-                
-                <div class="shortcuts">
-                    <h3>Your Shortcuts</h3>
-                    <a href="#" class="shortcut-item">
-                        <i class="fas fa-gamepad"></i>
-                        <span>Gaming</span>
-                    </a>
-                    <a href="#" class="shortcut-item">
-                        <i class="fas fa-graduation-cap"></i>
-                        <span>Courses</span>
-                    </a>
-                    <a href="#" class="shortcut-item">
-                        <i class="fas fa-heart"></i>
-                        <span>Dating</span>
-                    </a>
+                <div class="sidebar-section">
+                    <h3>Quick Actions</h3>
+                    <button class="sidebar-action" onclick="showCreatePost()">
+                        <i class="fas fa-edit"></i> Create Post
+                    </button>
+                    <button class="sidebar-action" onclick="showFriends()">
+                        <i class="fas fa-user-plus"></i> Find Friends
+                    </button>
+                    <button class="sidebar-action" onclick="showNotifications()">
+                        <i class="fas fa-bell"></i> Notifications
+                    </button>
                 </div>
             </aside>
 
-            <!-- Center Feed -->
             <section class="feed">
-                <!-- Create Post Card -->
-                <div class="card create-post">
-                    <div class="post-header">
-                        <img src="{{ url_for('static', filename='uploads/' + current_user.profile_pic) if current_user.is_authenticated and current_user.profile_pic else 'https://via.placeholder.com/40/1a3a2a/ffffff?text=SF' }}" alt="Profile" class="profile-pic-small">
-                        <input type="text" placeholder="What's on your mind, {{ current_user.username if current_user.is_authenticated else 'User' }}?">
-                    </div>
-                    <div class="post-actions">
-                        <button class="post-action-btn">
-                            <i class="fas fa-video" style="color: #f02849;"></i>
-                            <span>Live Video</span>
-                        </button>
-                        <button class="post-action-btn">
-                            <i class="fas fa-images" style="color: #45bd62;"></i>
-                            <span>Photo/Video</span>
-                        </button>
-                        <button class="post-action-btn">
-                            <i class="fas fa-laugh-beam" style="color: #f7b928;"></i>
-                            <span>Feeling/Activity</span>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Stories -->
-                <div class="stories-container">
-                    <div class="story-card create-story">
-                        <div class="story-content">
-                            <div class="story-avatar">
-                                <img src="{{ url_for('static', filename='uploads/' + current_user.profile_pic) if current_user.is_authenticated and current_user.profile_pic else 'https://via.placeholder.com/50/1a3a2a/ffffff?text=SF' }}" alt="Profile">
-                                <div class="add-story-btn">+</div>
+                <div id="create-post-modal" class="modal" style="display: none;">
+                    <div class="modal-content">
+                        <span class="close" onclick="hideCreatePost()">&times;</span>
+                        <h2>Create Post</h2>
+                        <form id="create-post-form" enctype="multipart/form-data">
+                            <div class="form-group">
+                                <textarea id="post-content" placeholder="What's on your mind, {{ current_user.username if current_user.is_authenticated else 'User' }}?" required></textarea>
                             </div>
-                            <p>Create Story</p>
-                        </div>
+                            <div class="form-group">
+                                <label for="post-image">Add Image (optional):</label>
+                                <input type="file" id="post-image" name="image" accept="image/*">
+                            </div>
+                            <button type="submit" class="btn-primary">Post</button>
+                        </form>
                     </div>
-                    
-                    <!-- Story cards will be populated by JavaScript -->
                 </div>
 
-                <!-- Posts Feed -->
                 <div id="posts-container">
                     {% if posts %}
                         {% for post in posts %}
-                        <div class="card post">
+                        <div class="card post" data-post-id="{{ post.id }}">
                             <div class="post-user">
-                                <img src="{{ url_for('static', filename='uploads/' + post.author.profile_pic) if post.author.profile_pic else 'https://via.placeholder.com/40/1a3a2a/ffffff?text=SF' }}" alt="{{ post.author.username }}" class="profile-pic-small">
+                                {% if post.author.profile_pic %}
+                                    <img src="{{ url_for('static', filename='uploads/' + post.author.profile_pic) }}" alt="{{ post.author.username }}" class="profile-pic-small">
+                                {% else %}
+                                    <div class="profile-placeholder">{{ post.author.username[0] }}</div>
+                                {% endif %}
                                 <div class="post-user-info">
                                     <h4>{{ post.author.username }}</h4>
                                     <span>{{ post.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
@@ -221,116 +179,87 @@
                                 {% endif %}
                             </div>
                             <div class="post-stats">
-                                <div class="likes-count">
-                                    <span>{{ post.likes|length }} likes</span>
-                                </div>
-                                <div class="comments-count">
-                                    <span>{{ post.comments|length }} comments</span>
-                                </div>
+                                <span class="likes-count">{{ post.likes|length }} likes</span>
+                                <span class="comments-count">{{ post.comments|length }} comments</span>
                             </div>
-                            <div class="post-actions-row">
-                                <div class="reactions-container">
-                                    <button class="post-action like-btn" data-post-id="{{ post.id }}">
-                                        <i class="fas fa-thumbs-up"></i>
-                                        <span>Like</span>
-                                    </button>
-                                    <div class="reactions-tooltip">
-                                        <span data-reaction="like">👍</span>
-                                        <span data-reaction="love">❤️</span>
-                                        <span data-reaction="haha">😄</span>
-                                        <span data-reaction="wow">😲</span>
-                                        <span data-reaction="sad">😢</span>
-                                        <span data-reaction="angry">😠</span>
-                                    </div>
-                                </div>
-                                <button class="post-action comment-btn" data-post-id="{{ post.id }}">
-                                    <i class="fas fa-comment"></i>
-                                    <span>Comment</span>
+                            <div class="post-actions">
+                                <button class="post-action like-btn" data-post-id="{{ post.id }}">
+                                    <i class="fas fa-thumbs-up"></i> Like
                                 </button>
-                                <button class="post-action share-btn" data-post-id="{{ post.id }}">
-                                    <i class="fas fa-share"></i>
-                                    <span>Share</span>
+                                <button class="post-action comment-btn" onclick="focusComment({{ post.id }})">
+                                    <i class="fas fa-comment"></i> Comment
                                 </button>
                             </div>
-                            <div class="comments-section" id="comments-{{ post.id }}" style="display: none;">
-                                <div class="comments-list">
-                                    {% for comment in post.comments %}
-                                    <div class="comment">
-                                        <img src="{{ url_for('static', filename='uploads/' + comment.author.profile_pic) if comment.author.profile_pic else 'https://via.placeholder.com/32/1a3a2a/ffffff?text=SF' }}" alt="User" class="comment-avatar">
-                                        <div class="comment-content">
-                                            <div class="comment-header">
-                                                <span class="comment-author">{{ comment.author.username }}</span>
-                                                <span class="comment-time">{{ comment.created_at.strftime('%H:%M') }}</span>
-                                            </div>
-                                            <p>{{ comment.content }}</p>
-                                        </div>
+                            <div class="comments-section">
+                                {% for comment in post.comments %}
+                                <div class="comment">
+                                    {% if comment.author.profile_pic %}
+                                        <img src="{{ url_for('static', filename='uploads/' + comment.author.profile_pic) }}" alt="{{ comment.author.username }}" class="comment-avatar">
+                                    {% else %}
+                                        <div class="profile-placeholder-small">{{ comment.author.username[0] }}</div>
+                                    {% endif %}
+                                    <div class="comment-content">
+                                        <strong>{{ comment.author.username }}</strong>
+                                        <p>{{ comment.content }}</p>
+                                        <small>{{ comment.created_at.strftime('%H:%M') }}</small>
                                     </div>
-                                    {% endfor %}
                                 </div>
+                                {% endfor %}
                                 <div class="add-comment">
-                                    <input type="text" placeholder="Write a comment..." class="comment-input">
-                                    <button class="comment-submit-btn" data-post-id="{{ post.id }}">Post</button>
+                                    {% if current_user.profile_pic %}
+                                        <img src="{{ url_for('static', filename='uploads/' + current_user.profile_pic) }}" alt="You" class="comment-avatar">
+                                    {% else %}
+                                        <div class="profile-placeholder-small">{{ current_user.username[0] }}</div>
+                                    {% endif %}
+                                    <input type="text" class="comment-input" placeholder="Write a comment..." data-post-id="{{ post.id }}">
+                                    <button class="comment-btn" onclick="addComment({{ post.id }})">Post</button>
                                 </div>
                             </div>
                         </div>
                         {% endfor %}
                     {% else %}
-                        <div class="card">
-                            <div style="padding: 40px; text-align: center;">
-                                <h3>Welcome to SociaFam!</h3>
-                                <p>Start connecting with friends by creating your first post or adding friends.</p>
+                        <div class="card welcome-card">
+                            <div class="welcome-content">
+                                <h2>Welcome to SociaFam!</h2>
+                                <p>Your social network is empty. Start by:</p>
+                                <ul>
+                                    <li>Creating your first post</li>
+                                    <li>Updating your profile</li>
+                                    <li>Finding and adding friends</li>
+                                </ul>
+                                <button class="btn-primary" onclick="showCreatePost()">Create Your First Post</button>
                             </div>
                         </div>
                     {% endif %}
                 </div>
-                
-                <div class="load-more-container">
-                    <button id="load-more-btn" class="btn-secondary">Load More Posts</button>
-                </div>
             </section>
 
-            <!-- Right Sidebar -->
             <aside class="sidebar right-sidebar">
-                <div class="contacts-section">
-                    <h3>Contacts</h3>
-                    <div class="contacts-list">
-                        <!-- Contacts will be populated by JavaScript -->
-                    </div>
+                <div id="friends-container" class="sidebar-section">
+                    <h3>Your Friends <span id="friends-count">0</span></h3>
+                    <div id="friends-list"></div>
                 </div>
-                
-                <div class="suggestions-section">
-                    <h3>Suggestions for You</h3>
-                    <div class="suggestions-list">
-                        <!-- Suggestions will be populated by JavaScript -->
-                    </div>
+
+                <div id="search-results" class="sidebar-section" style="display: none;">
+                    <h3>Search Results</h3>
+                    <div id="users-list"></div>
                 </div>
-                
-                <div class="birthdays-section">
-                    <h3>Birthdays</h3>
-                    <div class="birthday-item">
-                        <i class="fas fa-birthday-cake"></i>
-                        <span>No birthdays today.</span>
+
+                <div class="sidebar-section">
+                    <h3>Notifications</h3>
+                    <div id="notifications-list">
+                        <p>No new notifications</p>
                     </div>
                 </div>
             </aside>
         </main>
 
-        <!-- Chat Widget -->
-        <div class="chat-widget">
-            <div class="chat-header">
-                <h3>Chats</h3>
-                <div class="chat-actions">
-                    <button class="icon-btn"><i class="fas fa-video"></i></button>
-                    <button class="icon-btn"><i class="fas fa-edit"></i></button>
-                </div>
-            </div>
-            <div class="chats-list">
-                <!-- Chats will be populated by JavaScript -->
-            </div>
-        </div>
+        <form id="profile-form" style="display: none;" enctype="multipart/form-data">
+            <input type="file" id="profile-pic-input" name="profile_pic" accept="image/*">
+            <input type="file" id="cover-photo-input" name="cover_photo" accept="image/*">
+        </form>
     </div>
 
-    <!-- Flash Messages -->
     {% with messages = get_flashed_messages() %}
         {% if messages %}
             <div class="flash-messages">
