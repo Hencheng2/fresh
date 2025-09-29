@@ -1,180 +1,47 @@
 {% extends "base.html" %}
 
-{% block title %}Friends - SociaFam{% endblock %}
-
 {% block content %}
-<div class="friends-page">
-    <div class="friends-container">
-        <!-- Friend Requests -->
-        {% if pending_requests %}
-        <div class="card friends-section">
-            <h2>Friend Requests</h2>
-            <div class="friends-list">
-                {% for user in pending_requests %}
-                <div class="friend-item">
-                    <div class="friend-info">
-                        {% if user.profile_pic %}
-                            <img src="{{ url_for('static', filename='uploads/' + user.profile_pic) }}" alt="{{ user.username }}" class="profile-pic-medium">
-                        {% else %}
-                            <div class="profile-placeholder-medium">{{ user.username[0] }}</div>
-                        {% endif %}
-                        <div class="friend-details">
-                            <h4><a href="{{ url_for('profile', user_id=user.id) }}">{{ user.username }}</a></h4>
-                            <p>Sent you a friend request</p>
-                        </div>
-                    </div>
-                    <div class="friend-actions">
-                        <button class="btn-primary" onclick="acceptFriendRequest({{ user.id }})">Accept</button>
-                        <button class="btn-secondary">Delete</button>
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
+<div id="auth-modal" class="modal">
+    <div class="modal-content">
+        <div class="auth-tabs">
+            <button class="tab-button active" data-tab="login">Login</button>
+            <button class="tab-button" data-tab="register">Register</button>
         </div>
-        {% endif %}
-
-        <!-- Your Friends -->
-        <div class="card friends-section">
-            <h2>Your Friends ({{ friends|length }})</h2>
-            {% if friends %}
-            <div class="friends-grid">
-                {% for friend in friends %}
-                <div class="friend-card">
-                    {% if friend.profile_pic %}
-                        <img src="{{ url_for('static', filename='uploads/' + friend.profile_pic) }}" alt="{{ friend.username }}" class="friend-avatar">
-                    {% else %}
-                        <div class="profile-placeholder-large">{{ friend.username[0] }}</div>
-                    {% endif %}
-                    <h4><a href="{{ url_for('profile', user_id=friend.id) }}">{{ friend.username }}</a></h4>
-                    <button class="btn-secondary" onclick="window.location.href='{{ url_for('profile', user_id=friend.id) }}'">View Profile</button>
+        
+        <div id="login-tab" class="tab-content active">
+            <h2>Welcome to SociaFam</h2>
+            <form method="POST" action="{{ url_for('login') }}">
+                <div class="form-group">
+                    <input type="text" name="username" placeholder="Username" required>
                 </div>
-                {% endfor %}
-            </div>
-            {% else %}
-            <div class="empty-state">
-                <h3>No friends yet</h3>
-                <p>Start connecting with people by sending friend requests!</p>
-                <button class="btn-primary" onclick="searchUsers()">Find Friends</button>
-            </div>
-            {% endif %}
-        </div>
-
-        <!-- People You May Know -->
-        {% if suggestions %}
-        <div class="card friends-section">
-            <h2>People You May Know</h2>
-            <div class="suggestions-list">
-                {% for user in suggestions %}
-                <div class="suggestion-item">
-                    <div class="suggestion-info">
-                        {% if user.profile_pic %}
-                            <img src="{{ url_for('static', filename='uploads/' + user.profile_pic) }}" alt="{{ user.username }}" class="profile-pic-medium">
-                        {% else %}
-                            <div class="profile-placeholder-medium">{{ user.username[0] }}</div>
-                        {% endif %}
-                        <div class="suggestion-details">
-                            <h4><a href="{{ url_for('profile', user_id=user.id) }}">{{ user.username }}</a></h4>
-                            <p>No mutual friends</p>
-                        </div>
-                    </div>
-                    <button class="btn-primary" onclick="addFriend({{ user.id }})">Add Friend</button>
+                <div class="form-group">
+                    <input type="password" name="password" placeholder="Password" required>
                 </div>
-                {% endfor %}
-            </div>
+                <button type="submit" class="btn-primary">Log In</button>
+            </form>
         </div>
-        {% endif %}
+        
+        <div id="register-tab" class="tab-content">
+            <h2>Join SociaFam</h2>
+            <form method="POST" action="{{ url_for('register') }}">
+                <div class="form-group">
+                    <input type="text" name="username" placeholder="Username" required>
+                </div>
+                <div class="form-group">
+                    <input type="email" name="email" placeholder="Email" required>
+                </div>
+                <div class="form-group">
+                    <input type="password" name="password" placeholder="Password" required>
+                </div>
+                <button type="submit" class="btn-primary">Sign Up</button>
+            </form>
+        </div>
     </div>
-
-    <!-- Search Sidebar -->
-    <aside class="sidebar right-sidebar">
-        <div class="card search-section">
-            <h3>Find Friends</h3>
-            <div class="search-box">
-                <input type="text" id="friend-search" placeholder="Search by username...">
-                <button onclick="searchFriends()"><i class="fas fa-search"></i></button>
-            </div>
-            <div id="search-results" class="search-results">
-                <!-- Search results will appear here -->
-            </div>
-        </div>
-    </aside>
 </div>
 
 <script>
-function searchFriends() {
-    const query = document.getElementById('friend-search').value;
-    if (!query.trim()) return;
-
-    fetch(`/api/users?search=${encodeURIComponent(query)}`)
-    .then(response => response.json())
-    .then(data => {
-        const resultsContainer = document.getElementById('search-results');
-        resultsContainer.innerHTML = '';
-
-        if (data.users.length === 0) {
-            resultsContainer.innerHTML = '<p>No users found</p>';
-            return;
-        }
-
-        data.users.forEach(user => {
-            const userElement = document.createElement('div');
-            userElement.className = 'search-result-item';
-            
-            let profilePic = user.profile_pic ? 
-                `<img src="/static/uploads/${user.profile_pic}" alt="${user.username}" class="profile-pic-small">` :
-                `<div class="profile-placeholder-small">${user.username[0]}</div>`;
-            
-            let actionButton = '';
-            if (user.friendship_status === 'accepted') {
-                actionButton = '<button class="btn-secondary" disabled>Friends</button>';
-            } else if (user.friendship_status === 'pending') {
-                actionButton = '<button class="btn-secondary" disabled>Request Sent</button>';
-            } else {
-                actionButton = `<button class="btn-primary" onclick="addFriend(${user.id})">Add Friend</button>`;
-            }
-
-            userElement.innerHTML = `
-                <div class="search-result-info">
-                    ${profilePic}
-                    <div>
-                        <strong>${user.username}</strong>
-                    </div>
-                </div>
-                ${actionButton}
-            `;
-            
-            resultsContainer.appendChild(userElement);
-        });
-    })
-    .catch(error => {
-        console.error('Error searching users:', error);
-    });
-}
-
-function acceptFriendRequest(userId) {
-    // In a real implementation, you'd have the friendship ID
-    // For now, we'll use a simplified approach
-    fetch(`/add_friend/${userId}`, {
-        method: 'POST'
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            location.reload();
-        } else {
-            alert(data.message);
-        }
-    })
-    .catch(error => {
-        console.error('Error accepting friend request:', error);
-    });
-}
-
-// Add event listener for Enter key in search
-document.getElementById('friend-search').addEventListener('keypress', function(e) {
-    if (e.key === 'Enter') {
-        searchFriends();
-    }
+document.addEventListener('DOMContentLoaded', function() {
+    setupAuthModal();
 });
 </script>
 {% endblock %}
