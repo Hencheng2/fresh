@@ -1,275 +1,180 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SociaFam - Connect with Friends and Family</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-</head>
-<body>
-    <div id="auth-modal" class="modal" style="{{ 'display:none;' if current_user.is_authenticated else '' }}">
-        <div class="modal-content">
-            <span class="close">&times;</span>
-            <div class="auth-tabs">
-                <button class="tab-button active" data-tab="login">Login</button>
-                <button class="tab-button" data-tab="register">Register</button>
-            </div>
-            
-            <div id="login-tab" class="tab-content active">
-                <h2>Welcome to SociaFam</h2>
-                <form method="POST" action="{{ url_for('login') }}">
-                    <div class="form-group">
-                        <input type="text" name="username" placeholder="Username" required>
-                    </div>
-                    <div class="form-group">
-                        <input type="password" name="password" placeholder="Password" required>
-                    </div>
-                    <button type="submit" class="btn-primary">Log In</button>
-                </form>
-            </div>
-            
-            <div id="register-tab" class="tab-content">
-                <h2>Join SociaFam</h2>
-                <form method="POST" action="{{ url_for('register') }}">
-                    <div class="form-group">
-                        <input type="text" name="username" placeholder="Username" required>
-                    </div>
-                    <div class="form-group">
-                        <input type="email" name="email" placeholder="Email" required>
-                    </div>
-                    <div class="form-group">
-                        <input type="password" name="password" placeholder="Password" required>
-                    </div>
-                    <button type="submit" class="btn-primary">Sign Up</button>
-                </form>
-            </div>
-        </div>
-    </div>
+{% extends "base.html" %}
 
-    <div id="app-container" style="{{ 'display:none;' if not current_user.is_authenticated else '' }}">
-        <header class="header">
-            <div class="header-content">
-                <div class="logo">
-                    <h1><i class="fas fa-users"></i> SociaFam</h1>
-                </div>
-                
-                <div class="search-bar">
-                    <input type="text" id="search-input" placeholder="Search for people...">
-                    <button onclick="searchUsers()"><i class="fas fa-search"></i></button>
-                </div>
-                
-                <nav class="nav-menu">
-                    <a href="{{ url_for('feed') }}" class="nav-item active">
-                        <i class="fas fa-home"></i>
-                        <span>Home</span>
-                    </a>
-                    <a href="{{ url_for('my_profile') }}" class="nav-item">
-                        <i class="fas fa-user"></i>
-                        <span>Profile</span>
-                    </a>
-                    <a href="#" class="nav-item" onclick="showFriends()">
-                        <i class="fas fa-user-friends"></i>
-                        <span>Friends</span>
-                    </a>
-                </nav>
-                
-                <div class="user-menu">
-                    <div class="user-info" onclick="window.location.href='{{ url_for('my_profile') }}'">
-                        {% if current_user.is_authenticated and current_user.profile_pic %}
-                            <img src="{{ url_for('static', filename='uploads/' + current_user.profile_pic) }}" alt="Profile" class="profile-pic-small">
+{% block title %}Friends - SociaFam{% endblock %}
+
+{% block content %}
+<div class="friends-page">
+    <div class="friends-container">
+        <!-- Friend Requests -->
+        {% if pending_requests %}
+        <div class="card friends-section">
+            <h2>Friend Requests</h2>
+            <div class="friends-list">
+                {% for user in pending_requests %}
+                <div class="friend-item">
+                    <div class="friend-info">
+                        {% if user.profile_pic %}
+                            <img src="{{ url_for('static', filename='uploads/' + user.profile_pic) }}" alt="{{ user.username }}" class="profile-pic-medium">
                         {% else %}
-                            <div class="profile-placeholder">{{ current_user.username[0] if current_user.is_authenticated else 'U' }}</div>
+                            <div class="profile-placeholder-medium">{{ user.username[0] }}</div>
                         {% endif %}
-                        <span>{{ current_user.username if current_user.is_authenticated else '' }}</span>
-                    </div>
-                    <div class="dropdown">
-                        <button class="dropdown-btn"><i class="fas fa-caret-down"></i></button>
-                        <div class="dropdown-content">
-                            <a href="{{ url_for('my_profile') }}"><i class="fas fa-user"></i> Profile</a>
-                            <a href="#" onclick="showSettings()"><i class="fas fa-cog"></i> Settings</a>
-                            <a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                        <div class="friend-details">
+                            <h4><a href="{{ url_for('profile', user_id=user.id) }}">{{ user.username }}</a></h4>
+                            <p>Sent you a friend request</p>
                         </div>
                     </div>
-                </div>
-            </div>
-        </header>
-
-        <main class="main-content">
-            <aside class="sidebar left-sidebar">
-                <div class="user-card">
-                    <div class="cover-photo">
-                        {% if current_user.is_authenticated and current_user.cover_photo %}
-                            <img src="{{ url_for('static', filename='uploads/' + current_user.cover_photo) }}" alt="Cover">
-                        {% else %}
-                            <div class="cover-placeholder"></div>
-                        {% endif %}
-                        <button class="edit-cover" onclick="document.getElementById('cover-photo-input').click()">
-                            <i class="fas fa-camera"></i>
-                        </button>
-                    </div>
-                    <div class="user-details">
-                        <div class="profile-pic-container">
-                            {% if current_user.is_authenticated and current_user.profile_pic %}
-                                <img src="{{ url_for('static', filename='uploads/' + current_user.profile_pic) }}" alt="Profile" class="profile-pic-large">
-                            {% else %}
-                                <div class="profile-placeholder-large">{{ current_user.username[0] if current_user.is_authenticated else 'U' }}</div>
-                            {% endif %}
-                            <button class="edit-profile-pic" onclick="document.getElementById('profile-pic-input').click()">
-                                <i class="fas fa-camera"></i>
-                            </button>
-                        </div>
-                        <h3>{{ current_user.username if current_user.is_authenticated else '' }}</h3>
-                        <p class="user-bio">{{ current_user.bio if current_user.is_authenticated and current_user.bio else 'Click to add bio' }}</p>
-                        <button class="btn-secondary" onclick="editBio()">Edit Profile</button>
+                    <div class="friend-actions">
+                        <button class="btn-primary" onclick="acceptFriendRequest({{ user.id }})">Accept</button>
+                        <button class="btn-secondary">Delete</button>
                     </div>
                 </div>
-                
-                <div class="sidebar-section">
-                    <h3>Quick Actions</h3>
-                    <button class="sidebar-action" onclick="showCreatePost()">
-                        <i class="fas fa-edit"></i> Create Post
-                    </button>
-                    <button class="sidebar-action" onclick="showFriends()">
-                        <i class="fas fa-user-plus"></i> Find Friends
-                    </button>
-                    <button class="sidebar-action" onclick="showNotifications()">
-                        <i class="fas fa-bell"></i> Notifications
-                    </button>
-                </div>
-            </aside>
-
-            <section class="feed">
-                <div id="create-post-modal" class="modal" style="display: none;">
-                    <div class="modal-content">
-                        <span class="close" onclick="hideCreatePost()">&times;</span>
-                        <h2>Create Post</h2>
-                        <form id="create-post-form" enctype="multipart/form-data">
-                            <div class="form-group">
-                                <textarea id="post-content" placeholder="What's on your mind, {{ current_user.username if current_user.is_authenticated else 'User' }}?" required></textarea>
-                            </div>
-                            <div class="form-group">
-                                <label for="post-image">Add Image (optional):</label>
-                                <input type="file" id="post-image" name="image" accept="image/*">
-                            </div>
-                            <button type="submit" class="btn-primary">Post</button>
-                        </form>
-                    </div>
-                </div>
-
-                <div id="posts-container">
-                    {% if posts %}
-                        {% for post in posts %}
-                        <div class="card post" data-post-id="{{ post.id }}">
-                            <div class="post-user">
-                                {% if post.author.profile_pic %}
-                                    <img src="{{ url_for('static', filename='uploads/' + post.author.profile_pic) }}" alt="{{ post.author.username }}" class="profile-pic-small">
-                                {% else %}
-                                    <div class="profile-placeholder">{{ post.author.username[0] }}</div>
-                                {% endif %}
-                                <div class="post-user-info">
-                                    <h4>{{ post.author.username }}</h4>
-                                    <span>{{ post.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
-                                </div>
-                            </div>
-                            <div class="post-content">
-                                <p>{{ post.content }}</p>
-                                {% if post.image %}
-                                    <img src="{{ url_for('static', filename='uploads/' + post.image) }}" alt="Post image" class="post-image">
-                                {% endif %}
-                            </div>
-                            <div class="post-stats">
-                                <span class="likes-count">{{ post.likes|length }} likes</span>
-                                <span class="comments-count">{{ post.comments|length }} comments</span>
-                            </div>
-                            <div class="post-actions">
-                                <button class="post-action like-btn" data-post-id="{{ post.id }}">
-                                    <i class="fas fa-thumbs-up"></i> Like
-                                </button>
-                                <button class="post-action comment-btn" onclick="focusComment({{ post.id }})">
-                                    <i class="fas fa-comment"></i> Comment
-                                </button>
-                            </div>
-                            <div class="comments-section">
-                                {% for comment in post.comments %}
-                                <div class="comment">
-                                    {% if comment.author.profile_pic %}
-                                        <img src="{{ url_for('static', filename='uploads/' + comment.author.profile_pic) }}" alt="{{ comment.author.username }}" class="comment-avatar">
-                                    {% else %}
-                                        <div class="profile-placeholder-small">{{ comment.author.username[0] }}</div>
-                                    {% endif %}
-                                    <div class="comment-content">
-                                        <strong>{{ comment.author.username }}</strong>
-                                        <p>{{ comment.content }}</p>
-                                        <small>{{ comment.created_at.strftime('%H:%M') }}</small>
-                                    </div>
-                                </div>
-                                {% endfor %}
-                                <div class="add-comment">
-                                    {% if current_user.profile_pic %}
-                                        <img src="{{ url_for('static', filename='uploads/' + current_user.profile_pic) }}" alt="You" class="comment-avatar">
-                                    {% else %}
-                                        <div class="profile-placeholder-small">{{ current_user.username[0] }}</div>
-                                    {% endif %}
-                                    <input type="text" class="comment-input" placeholder="Write a comment..." data-post-id="{{ post.id }}">
-                                    <button class="comment-btn" onclick="addComment({{ post.id }})">Post</button>
-                                </div>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    {% else %}
-                        <div class="card welcome-card">
-                            <div class="welcome-content">
-                                <h2>Welcome to SociaFam!</h2>
-                                <p>Your social network is empty. Start by:</p>
-                                <ul>
-                                    <li>Creating your first post</li>
-                                    <li>Updating your profile</li>
-                                    <li>Finding and adding friends</li>
-                                </ul>
-                                <button class="btn-primary" onclick="showCreatePost()">Create Your First Post</button>
-                            </div>
-                        </div>
-                    {% endif %}
-                </div>
-            </section>
-
-            <aside class="sidebar right-sidebar">
-                <div id="friends-container" class="sidebar-section">
-                    <h3>Your Friends <span id="friends-count">0</span></h3>
-                    <div id="friends-list"></div>
-                </div>
-
-                <div id="search-results" class="sidebar-section" style="display: none;">
-                    <h3>Search Results</h3>
-                    <div id="users-list"></div>
-                </div>
-
-                <div class="sidebar-section">
-                    <h3>Notifications</h3>
-                    <div id="notifications-list">
-                        <p>No new notifications</p>
-                    </div>
-                </div>
-            </aside>
-        </main>
-
-        <form id="profile-form" style="display: none;" enctype="multipart/form-data">
-            <input type="file" id="profile-pic-input" name="profile_pic" accept="image/*">
-            <input type="file" id="cover-photo-input" name="cover_photo" accept="image/*">
-        </form>
-    </div>
-
-    {% with messages = get_flashed_messages() %}
-        {% if messages %}
-            <div class="flash-messages">
-                {% for message in messages %}
-                    <div class="flash-message">{{ message }}</div>
                 {% endfor %}
             </div>
+        </div>
         {% endif %}
-    {% endwith %}
 
-    <script src="{{ url_for('static', filename='script.js') }}"></script>
-</body>
-</html>
+        <!-- Your Friends -->
+        <div class="card friends-section">
+            <h2>Your Friends ({{ friends|length }})</h2>
+            {% if friends %}
+            <div class="friends-grid">
+                {% for friend in friends %}
+                <div class="friend-card">
+                    {% if friend.profile_pic %}
+                        <img src="{{ url_for('static', filename='uploads/' + friend.profile_pic) }}" alt="{{ friend.username }}" class="friend-avatar">
+                    {% else %}
+                        <div class="profile-placeholder-large">{{ friend.username[0] }}</div>
+                    {% endif %}
+                    <h4><a href="{{ url_for('profile', user_id=friend.id) }}">{{ friend.username }}</a></h4>
+                    <button class="btn-secondary" onclick="window.location.href='{{ url_for('profile', user_id=friend.id) }}'">View Profile</button>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <h3>No friends yet</h3>
+                <p>Start connecting with people by sending friend requests!</p>
+                <button class="btn-primary" onclick="searchUsers()">Find Friends</button>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- People You May Know -->
+        {% if suggestions %}
+        <div class="card friends-section">
+            <h2>People You May Know</h2>
+            <div class="suggestions-list">
+                {% for user in suggestions %}
+                <div class="suggestion-item">
+                    <div class="suggestion-info">
+                        {% if user.profile_pic %}
+                            <img src="{{ url_for('static', filename='uploads/' + user.profile_pic) }}" alt="{{ user.username }}" class="profile-pic-medium">
+                        {% else %}
+                            <div class="profile-placeholder-medium">{{ user.username[0] }}</div>
+                        {% endif %}
+                        <div class="suggestion-details">
+                            <h4><a href="{{ url_for('profile', user_id=user.id) }}">{{ user.username }}</a></h4>
+                            <p>No mutual friends</p>
+                        </div>
+                    </div>
+                    <button class="btn-primary" onclick="addFriend({{ user.id }})">Add Friend</button>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Search Sidebar -->
+    <aside class="sidebar right-sidebar">
+        <div class="card search-section">
+            <h3>Find Friends</h3>
+            <div class="search-box">
+                <input type="text" id="friend-search" placeholder="Search by username...">
+                <button onclick="searchFriends()"><i class="fas fa-search"></i></button>
+            </div>
+            <div id="search-results" class="search-results">
+                <!-- Search results will appear here -->
+            </div>
+        </div>
+    </aside>
+</div>
+
+<script>
+function searchFriends() {
+    const query = document.getElementById('friend-search').value;
+    if (!query.trim()) return;
+
+    fetch(`/api/users?search=${encodeURIComponent(query)}`)
+    .then(response => response.json())
+    .then(data => {
+        const resultsContainer = document.getElementById('search-results');
+        resultsContainer.innerHTML = '';
+
+        if (data.users.length === 0) {
+            resultsContainer.innerHTML = '<p>No users found</p>';
+            return;
+        }
+
+        data.users.forEach(user => {
+            const userElement = document.createElement('div');
+            userElement.className = 'search-result-item';
+            
+            let profilePic = user.profile_pic ? 
+                `<img src="/static/uploads/${user.profile_pic}" alt="${user.username}" class="profile-pic-small">` :
+                `<div class="profile-placeholder-small">${user.username[0]}</div>`;
+            
+            let actionButton = '';
+            if (user.friendship_status === 'accepted') {
+                actionButton = '<button class="btn-secondary" disabled>Friends</button>';
+            } else if (user.friendship_status === 'pending') {
+                actionButton = '<button class="btn-secondary" disabled>Request Sent</button>';
+            } else {
+                actionButton = `<button class="btn-primary" onclick="addFriend(${user.id})">Add Friend</button>`;
+            }
+
+            userElement.innerHTML = `
+                <div class="search-result-info">
+                    ${profilePic}
+                    <div>
+                        <strong>${user.username}</strong>
+                    </div>
+                </div>
+                ${actionButton}
+            `;
+            
+            resultsContainer.appendChild(userElement);
+        });
+    })
+    .catch(error => {
+        console.error('Error searching users:', error);
+    });
+}
+
+function acceptFriendRequest(userId) {
+    // In a real implementation, you'd have the friendship ID
+    // For now, we'll use a simplified approach
+    fetch(`/add_friend/${userId}`, {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error accepting friend request:', error);
+    });
+}
+
+// Add event listener for Enter key in search
+document.getElementById('friend-search').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        searchFriends();
+    }
+});
+</script>
+{% endblock %}
