@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}SociaFam{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    {% if current_user.is_authenticated %}
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">
+                <h1><i class="fas fa-users"></i> SociaFam</h1>
+            </div>
+            
+            <div class="search-bar">
+                <input type="text" id="search-input" placeholder="Search for people...">
+                <button onclick="searchUsers()"><i class="fas fa-search"></i></button>
+            </div>
+            
+            <nav class="nav-menu">
+                <a href="{{ url_for('feed') }}" class="nav-item {% if request.endpoint == 'feed' %}active{% endif %}">
+                    <i class="fas fa-home"></i>
+                    <span>Home</span>
+                </a>
+                <a href="{{ url_for('my_profile') }}" class="nav-item {% if request.endpoint == 'my_profile' %}active{% endif %}">
+                    <i class="fas fa-user"></i>
+                    <span>Profile</span>
+                </a>
+                <a href="{{ url_for('friends') }}" class="nav-item {% if request.endpoint == 'friends' %}active{% endif %}">
+                    <i class="fas fa-user-friends"></i>
+                    <span>Friends</span>
+                </a>
+            </nav>
+            
+            <div class="user-menu">
+                <div class="user-info" onclick="window.location.href='{{ url_for('my_profile') }}'">
+                    {% if current_user.profile_pic %}
+                        <img src="{{ url_for('static', filename='uploads/' + current_user.profile_pic) }}" alt="Profile" class="profile-pic-small">
+                    {% else %}
+                        <div class="profile-placeholder">{{ current_user.username[0] }}</div>
+                    {% endif %}
+                    <span>{{ current_user.username }}</span>
+                </div>
+                <div class="dropdown">
+                    <button class="dropdown-btn"><i class="fas fa-caret-down"></i></button>
+                    <div class="dropdown-content">
+                        <a href="{{ url_for('my_profile') }}"><i class="fas fa-user"></i> Profile</a>
+                        <a href="{{ url_for('friends') }}"><i class="fas fa-user-friends"></i> Friends</a>
+                        <a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+    {% endif %}
+
+    <main class="main-content">
+        {% block content %}{% endblock %}
+    </main>
+
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            <div class="flash-messages">
+                {% for message in messages %}
+                    <div class="flash-message">{{ message }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
