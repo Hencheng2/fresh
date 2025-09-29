@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block title %}Feed - SociaFam{% endblock %}
+
+{% block content %}
+<div class="feed-page">
+    <div class="feed-container">
+        <!-- Create Post Card -->
+        <div class="card create-post">
+            <div class="post-header">
+                {% if current_user.profile_pic %}
+                    <img src="{{ url_for('static', filename='uploads/' + current_user.profile_pic) }}" alt="Profile" class="profile-pic-small">
+                {% else %}
+                    <div class="profile-placeholder">{{ current_user.username[0] }}</div>
+                {% endif %}
+                <input type="text" id="post-content-input" placeholder="What's on your mind, {{ current_user.username }}?">
+            </div>
+            <div class="post-actions">
+                <button class="post-action-btn" onclick="document.getElementById('post-image-input').click()">
+                    <i class="fas fa-images" style="color: #45bd62;"></i>
+                    <span>Photo</span>
+                </button>
+                <button class="post-action-btn" onclick="createPost()">
+                    <i class="fas fa-paper-plane" style="color: #1877f2;"></i>
+                    <span>Post</span>
+                </button>
+            </div>
+            <form id="create-post-form" enctype="multipart/form-data" style="display: none;">
+                <input type="file" id="post-image-input" name="image" accept="image/*">
+            </form>
+        </div>
+
+        <!-- Posts Feed -->
+        <div id="posts-container">
+            {% if posts %}
+                {% for post in posts %}
+                <div class="card post" data-post-id="{{ post.id }}">
+                    <div class="post-user">
+                        {% if post.author.profile_pic %}
+                            <img src="{{ url_for('static', filename='uploads/' + post.author.profile_pic) }}" alt="{{ post.author.username }}" class="profile-pic-small">
+                        {% else %}
+                            <div class="profile-placeholder">{{ post.author.username[0] }}</div>
+                        {% endif %}
+                        <div class="post-user-info">
+                            <h4><a href="{{ url_for('profile', user_id=post.author.id) }}">{{ post.author.username }}</a></h4>
+                            <span>{{ post.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                        </div>
+                    </div>
+                    <div class="post-content">
+                        <p>{{ post.content }}</p>
+                        {% if post.image %}
+                            <img src="{{ url_for('static', filename='uploads/' + post.image) }}" alt="Post image" class="post-image">
+                        {% endif %}
+                    </div>
+                    <div class="post-stats">
+                        <span class="likes-count">{{ post.likes|length }} likes</span>
+                        <span class="comments-count">{{ post.comments|length }} comments</span>
+                    </div>
+                    <div class="post-actions">
+                        <button class="post-action like-btn" data-post-id="{{ post.id }}">
+                            <i class="fas fa-thumbs-up"></i> Like
+                        </button>
+                        <button class="post-action comment-btn" onclick="focusComment({{ post.id }})">
+                            <i class="fas fa-comment"></i> Comment
+                        </button>
+                    </div>
+                    <div class="comments-section">
+                        {% for comment in post.comments %}
+                        <div class="comment">
+                            {% if comment.author.profile_pic %}
+                                <img src="{{ url_for('static', filename='uploads/' + comment.author.profile_pic) }}" alt="{{ comment.author.username }}" class="comment-avatar">
+                            {% else %}
+                                <div class="profile-placeholder-small">{{ comment.author.username[0] }}</div>
+                            {% endif %}
+                            <div class="comment-content">
+                                <strong><a href="{{ url_for('profile', user_id=comment.author.id) }}">{{ comment.author.username }}</a></strong>
+                                <p>{{ comment.content }}</p>
+                                <small>{{ comment.created_at.strftime('%H:%M') }}</small>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        <div class="add-comment">
+                            {% if current_user.profile_pic %}
+                                <img src="{{ url_for('static', filename='uploads/' + current_user.profile_pic) }}" alt="You" class="comment-avatar">
+                            {% else %}
+                                <div class="profile-placeholder-small">{{ current_user.username[0] }}</div>
+                            {% endif %}
+                            <input type="text" class="comment-input" placeholder="Write a comment..." data-post-id="{{ post.id }}">
+                            <button class="comment-btn" onclick="addComment({{ post.id }})">Post</button>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="card welcome-card">
+                    <div class="welcome-content">
+                        <h2>Welcome to SociaFam!</h2>
+                        <p>Your feed is empty. Start by:</p>
+                        <ul>
+                            <li>Creating your first post</li>
+                            <li>Adding friends to see their posts</li>
+                            <li>Exploring the community</li>
+                        </ul>
+                        <button class="btn-primary" onclick="document.getElementById('post-content-input').focus()">Create Your First Post</button>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Right Sidebar -->
+    <aside class="sidebar right-sidebar">
+        <div class="sidebar-section">
+            <h3>Quick Actions</h3>
+            <button class="sidebar-action" onclick="window.location.href='{{ url_for('friends') }}'">
+                <i class="fas fa-user-plus"></i> Find Friends
+            </button>
+            <button class="sidebar-action" onclick="window.location.href='{{ url_for('my_profile') }}'">
+                <i class="fas fa-edit"></i> Edit Profile
+            </button>
+        </div>
+
+        <div class="sidebar-section">
+            <h3>Online Friends</h3>
+            <div id="online-friends">
+                <p>No friends online</p>
+            </div>
+        </div>
+    </aside>
+</div>
+
+<script>
+function createPost() {
+    const content = document.getElementById('post-content-input').value;
+    const imageInput = document.getElementById('post-image-input');
+    
+    if (!content.trim()) {
+        alert('Please enter post content');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('content', content);
+    
+    if (imageInput.files[0]) {
+        formData.append('image', imageInput.files[0]);
+    }
+    
+    fetch('/create_post', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => {
+        if (response.ok) {
+            location.reload();
+        }
+    })
+    .catch(error => {
+        console.error('Error creating post:', error);
+    });
+}
+
+// Add event listener for Enter key in post input
+document.getElementById('post-content-input').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        createPost();
+    }
+});
+
+// Setup post interactions
+document.addEventListener('DOMContentLoaded', function() {
+    setupPostInteractions();
+});
+</script>
+{% endblock %}
