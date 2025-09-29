@@ -108,7 +108,7 @@ def feed():
     friend_ids.add(current_user.id)
     
     posts = Post.query.filter(Post.user_id.in_(friend_ids)).order_by(Post.created_at.desc()).all()
-    return render_template('index.html', posts=posts)
+    return render_template('feed.html', posts=posts)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -162,7 +162,7 @@ def create_post():
     
     if not content or content.strip() == '':
         flash('Post content cannot be empty')
-        return redirect(url_for('feed'))
+        return redirect(request.referrer or url_for('feed'))
     
     new_post = Post(content=content.strip(), user_id=current_user.id)
     
@@ -180,7 +180,7 @@ def create_post():
     db.session.add(new_post)
     db.session.commit()
     flash('Post created successfully!')
-    return redirect(url_for('feed'))
+    return redirect(request.referrer or url_for('feed'))
 
 @app.route('/update_profile', methods=['POST'])
 @login_required
@@ -224,7 +224,7 @@ def update_profile():
     current_user.bio = bio.strip()
     db.session.commit()
     flash('Profile updated successfully!')
-    return redirect(url_for('feed'))
+    return redirect(url_for('my_profile'))
 
 @app.route('/like_post/<int:post_id>', methods=['POST'])
 @login_required
@@ -262,13 +262,13 @@ def add_comment(post_id):
     
     if not content or content.strip() == '':
         flash('Comment cannot be empty')
-        return redirect(url_for('feed'))
+        return redirect(request.referrer or url_for('feed'))
     
     new_comment = Comment(content=content.strip(), user_id=current_user.id, post_id=post_id)
     db.session.add(new_comment)
     db.session.commit()
     
-    return redirect(url_for('feed'))
+    return redirect(request.referrer or url_for('feed'))
 
 @app.route('/add_friend/<int:user_id>', methods=['POST'])
 @login_required
@@ -317,11 +317,31 @@ def accept_friend(friend_id):
     
     return jsonify({'success': True, 'message': 'Friend request accepted'})
 
-# ADD THE MISSING ROUTE
 @app.route('/my_profile')
 @login_required
 def my_profile():
-    return redirect(url_for('profile', user_id=current_user.id))
+    user = current_user
+    posts = Post.query.filter_by(user_id=user.id).order_by(Post.created_at.desc()).all()
+    
+    friends = Friend.query.filter(
+        ((Friend.user_id == user.id) | (Friend.friend_id == user.id)) & 
+        (Friend.status == 'accepted')
+    ).all()
+    
+    friend_ids = set()
+    for friend in friends:
+        if friend.user_id == user.id:
+            friend_ids.add(friend.friend_id)
+        else:
+            friend_ids.add(friend.user_id)
+    
+    friends_count = len(friend_ids)
+    
+    return render_template('profile.html', 
+                         profile_user=user, 
+                         profile_posts=posts, 
+                         friends_count=friends_count,
+                         is_own_profile=True)
 
 @app.route('/profile/<int:user_id>')
 @login_required
@@ -334,7 +354,60 @@ def profile(user_id):
         ((Friend.user_id == user_id) & (Friend.friend_id == current_user.id))
     ).first()
     
-    return render_template('index.html', profile_user=user, profile_posts=posts, friendship=friendship)
+    friends = Friend.query.filter(
+        ((Friend.user_id == user_id) | (Friend.friend_id == user_id)) & 
+        (Friend.status == 'accepted')
+    ).all()
+    
+    friend_ids = set()
+    for friend in friends:
+        if friend.user_id == user_id:
+            friend_ids.add(friend.friend_id)
+        else:
+            friend_ids.add(friend.user_id)
+    
+    friends_count = len(friend_ids)
+    
+    return render_template('profile.html', 
+                         profile_user=user, 
+                         profile_posts=posts, 
+                         friendship=friendship,
+                         friends_count=friends_count,
+                         is_own_profile=False)
+
+@app.route('/friends')
+@login_required
+def friends():
+    friends = Friend.query.filter(
+        ((Friend.user_id == current_user.id) | (Friend.friend_id == current_user.id)) & 
+        (Friend.status == 'accepted')
+    ).all()
+    
+    friend_ids = set()
+    friends_list = []
+    for friend in friends:
+        if friend.user_id == current_user.id:
+            friend_user = User.query.get(friend.friend_id)
+            friend_ids.add(friend.friend_id)
+        else:
+            friend_user = User.query.get(friend.user_id)
+            friend_ids.add(friend.user_id)
+        
+        if friend_user:
+            friends_list.append(friend_user)
+    
+    # Get pending friend requests
+    pending_requests = Friend.query.filter_by(friend_id=current_user.id, status='pending').all()
+    pending_users = [User.query.get(request.user_id) for request in pending_requests]
+    
+    # Get friend suggestions (users who are not friends)
+    all_users = User.query.filter(User.id != current_user.id).all()
+    suggestions = [user for user in all_users if user.id not in friend_ids]
+    
+    return render_template('friends.html', 
+                         friends=friends_list, 
+                         pending_requests=pending_users,
+                         suggestions=suggestions[:10])
 
 @app.route('/api/users')
 @login_required
@@ -381,20 +454,20 @@ def api_friends():
     ).all()
     
     friend_ids = set()
+    friends_data = []
     for friend in friends:
         if friend.user_id == current_user.id:
+            friend_user = User.query.get(friend.friend_id)
             friend_ids.add(friend.friend_id)
         else:
+            friend_user = User.query.get(friend.user_id)
             friend_ids.add(friend.user_id)
-    
-    friends_data = []
-    for friend_id in friend_ids:
-        user = User.query.get(friend_id)
-        if user:
+        
+        if friend_user:
             friends_data.append({
-                'id': user.id,
-                'username': user.username,
-                'profile_pic': user.profile_pic,
+                'id': friend_user.id,
+                'username': friend_user.username,
+                'profile_pic': friend_user.profile_pic,
                 'is_online': False
             })
     
