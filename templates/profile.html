@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+
+{% block title %}{{ profile_user.username }} - SociaFam{% endblock %}
+
+{% block content %}
+<div class="profile-page">
+    <!-- Profile Header -->
+    <div class="profile-header">
+        <div class="cover-photo-container">
+            {% if profile_user.cover_photo %}
+                <img src="{{ url_for('static', filename='uploads/' + profile_user.cover_photo) }}" alt="Cover" class="cover-photo">
+            {% else %}
+                <div class="cover-placeholder"></div>
+            {% endif %}
+            {% if is_own_profile %}
+            <button class="edit-cover-btn" onclick="document.getElementById('cover-photo-input').click()">
+                <i class="fas fa-camera"></i> Edit Cover
+            </button>
+            {% endif %}
+        </div>
+        
+        <div class="profile-info">
+            <div class="profile-pic-container">
+                {% if profile_user.profile_pic %}
+                    <img src="{{ url_for('static', filename='uploads/' + profile_user.profile_pic) }}" alt="Profile" class="profile-pic-large">
+                {% else %}
+                    <div class="profile-placeholder-large">{{ profile_user.username[0] }}</div>
+                {% endif %}
+                {% if is_own_profile %}
+                <button class="edit-profile-btn" onclick="document.getElementById('profile-pic-input').click()">
+                    <i class="fas fa-camera"></i>
+                </button>
+                {% endif %}
+            </div>
+            
+            <div class="profile-details">
+                <h1>{{ profile_user.username }}</h1>
+                <p class="profile-bio">{{ profile_user.bio or 'No bio yet' }}</p>
+                <div class="profile-stats">
+                    <span>{{ profile_posts|length }} posts</span>
+                    <span>{{ friends_count }} friends</span>
+                    <span>Joined {{ profile_user.created_at.strftime('%B %Y') }}</span>
+                </div>
+                
+                <div class="profile-actions">
+                    {% if is_own_profile %}
+                    <button class="btn-primary" onclick="editProfile()">Edit Profile</button>
+                    {% else %}
+                        {% if friendship and friendship.status == 'accepted' %}
+                        <button class="btn-secondary" disabled>Friends</button>
+                        {% elif friendship and friendship.status == 'pending' %}
+                            {% if friendship.user_id == current_user.id %}
+                            <button class="btn-secondary" disabled>Request Sent</button>
+                            {% else %}
+                            <button class="btn-primary" onclick="acceptFriend({{ friendship.id }})">Accept Request</button>
+                            {% endif %}
+                        {% else %}
+                        <button class="btn-primary" onclick="addFriend({{ profile_user.id }})">Add Friend</button>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Profile Content -->
+    <div class="profile-content">
+        <!-- Create Post (only for own profile) -->
+        {% if is_own_profile %}
+        <div class="card create-post">
+            <div class="post-header">
+                {% if current_user.profile_pic %}
+                    <img src="{{ url_for('static', filename='uploads/' + current_user.profile_pic) }}" alt="Profile" class="profile-pic-small">
+                {% else %}
+                    <div class="profile-placeholder">{{ current_user.username[0] }}</div>
+                {% endif %}
+                <input type="text" id="profile-post-content" placeholder="What's on your mind, {{ current_user.username }}?">
+            </div>
+            <div class="post-actions">
+                <button class="post-action-btn" onclick="document.getElementById('profile-post-image').click()">
+                    <i class="fas fa-images"></i> Photo
+                </button>
+                <button class="post-action-btn" onclick="createProfilePost()">
+                    <i class="fas fa-paper-plane"></i> Post
+                </button>
+            </div>
+            <form id="profile-post-form" enctype="multipart/form-data" style="display: none;">
+                <input type="file" id="profile-post-image" name="image" accept="image/*">
+            </form>
+        </div>
+        {% endif %}
+
+        <!-- Posts -->
+        <div class="posts-section">
+            <h2>Posts</h2>
+            {% if profile_posts %}
+                {% for post in profile_posts %}
+                <div class="card post" data-post-id="{{ post.id }}">
+                    <div class="post-user">
+                        {% if post.author.profile_pic %}
+                            <img src="{{ url_for('static', filename='uploads/' + post.author.profile_pic) }}" alt="{{ post.author.username }}" class="profile-pic-small">
+                        {% else %}
+                            <div class="profile-placeholder">{{ post.author.username[0] }}</div>
+                        {% endif %}
+                        <div class="post-user-info">
+                            <h4>{{ post.author.username }}</h4>
+                            <span>{{ post.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                        </div>
+                    </div>
+                    <div class="post-content">
+                        <p>{{ post.content }}</p>
+                        {% if post.image %}
+                            <img src="{{ url_for('static', filename='uploads/' + post.image) }}" alt="Post image" class="post-image">
+                        {% endif %}
+                    </div>
+                    <div class="post-stats">
+                        <span class="likes-count">{{ post.likes|length }} likes</span>
+                        <span class="comments-count">{{ post.comments|length }} comments</span>
+                    </div>
+                    <div class="post-actions">
+                        <button class="post-action like-btn" data-post-id="{{ post.id }}">
+                            <i class="fas fa-thumbs-up"></i> Like
+                        </button>
+                        <button class="post-action comment-btn" onclick="focusComment({{ post.id }})">
+                            <i class="fas fa-comment"></i> Comment
+                        </button>
+                    </div>
+                    <div class="comments-section">
+                        {% for comment in post.comments %}
+                        <div class="comment">
+                            {% if comment.author.profile_pic %}
+                                <img src="{{ url_for('static', filename='uploads/' + comment.author.profile_pic) }}" alt="{{ comment.author.username }}" class="comment-avatar">
+                            {% else %}
+                                <div class="profile-placeholder-small">{{ comment.author.username[0] }}</div>
+                            {% endif %}
+                            <div class="comment-content">
+                                <strong>{{ comment.author.username }}</strong>
+                                <p>{{ comment.content }}</p>
+                                <small>{{ comment.created_at.strftime('%H:%M') }}</small>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        <div class="add-comment">
+                            {% if current_user.profile_pic %}
+                                <img src="{{ url_for('static', filename='uploads/' + current_user.profile_pic) }}" alt="You" class="comment-avatar">
+                            {% else %}
+                                <div class="profile-placeholder-small">{{ current_user.username[0] }}</div>
+                            {% endif %}
+                            <input type="text" class="comment-input" placeholder="Write a comment..." data-post-id="{{ post.id }}">
+                            <button class="comment-btn" onclick="addComment({{ post.id }})">Post</button>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="card empty-state">
+                    <div class="empty-content">
+                        <h3>No posts yet</h3>
+                        <p>{% if is_own_profile %}Start sharing your thoughts with your first post!{% else %}{{ profile_user.username }} hasn't posted anything yet.{% endif %}</p>
+                        {% if is_own_profile %}
+                        <button class="btn-primary" onclick="document.getElementById('profile-post-content').focus()">Create First Post</button>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Hidden form for profile updates -->
+{% if is_own_profile %}
+<form id="profile-update-form" method="POST" action="{{ url_for('update_profile') }}" enctype="multipart/form-data" style="display: none;">
+    <input type="file" id="profile-pic-input" name="profile_pic" accept="image/*">
+    <input type="file" id="cover-photo-input" name="cover_photo" accept="image/*">
+    <textarea id="bio-input" name="bio">{{ profile_user.bio or '' }}</textarea>
+</form>
+{% endif %}
+
+<script>
+function editProfile() {
+    const bio = prompt('Enter your bio:', '{{ profile_user.bio or '' }}');
+    if (bio !== null) {
+        document.getElementById('bio-input').value = bio;
+        document.getElementById('profile-update-form').submit();
+    }
+}
+
+function createProfilePost() {
+    const content = document.getElementById('profile-post-content').value;
+    const imageInput = document.getElementById('profile-post-image');
+    
+    if (!content.trim()) {
+        alert('Please enter post content');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('content', content);
+    
+    if (imageInput.files[0]) {
+        formData.append('image', imageInput.files[0]);
+    }
+    
+    fetch('/create_post', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => {
+        if (response.ok) {
+            location.reload();
+        }
+    })
+    .catch(error => {
+        console.error('Error creating post:', error);
+    });
+}
+
+// Auto-submit when files are selected
+document.getElementById('profile-pic-input')?.addEventListener('change', function() {
+    document.getElementById('profile-update-form').submit();
+});
+
+document.getElementById('cover-photo-input')?.addEventListener('change', function() {
+    document.getElementById('profile-update-form').submit();
+});
+
+// Add event listener for Enter key in post input
+document.getElementById('profile-post-content')?.addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        createProfilePost();
+    }
+});
+
+// Setup post interactions
+document.addEventListener('DOMContentLoaded', function() {
+    setupPostInteractions();
+});
+</script>
+{% endblock %}
